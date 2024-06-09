@@ -1,12 +1,5 @@
-"""
-  Code Written by ~KK~
-  To Automate the boring process of renaming files for your TV Shows library
-  Useful for organising bulk media files or frequent updation of
-  your XBMC library (Like Kodi, Plex and OSMC)
-"""
 import os
 import re
-# import msvcrt
 import shutil
 import click
 from imdb import IMDb
@@ -234,4 +227,8 @@ def main(path, dry_run, verbose):
 @click.option('--dry-run', is_flag=True, help='Perform a trial run with no changes made')
 @click.option('--verbose', is_flag=True, help='Show verbose output')
 def cli(path, dry_run, verbose):
-    """Automate the boring process of
+    """Automate the boring process of renaming files for your TV Shows library."""
+    init(path, dry_run, verbose)
+
+if __name__ == '__main__':
+    cli()
