@@ -6,15 +6,14 @@
 """
 import os
 import re
-import msvcrt
+# import msvcrt
 import shutil
-import getopt
-import sys
+import click
 from imdb import IMDb
 from similarity.damerau import Damerau
 
 # Title
-def Title():
+def title():
     os.system('mode con: cols=90 lines=30')
     os.system("cls")
     print("    _       _                  _          _  ")
@@ -32,8 +31,6 @@ def Title():
     print(" | (_) | '_/ _` / _` | ' \| (_-</ -_) '_|")
     print("  \___/|_| \__, \__,_|_||_|_/__/\___|_|  ")
     print("           |___/                         ")
-    print("")
-
 
 # Find most apt name in Series List
 def find_most_apt(name, series):
@@ -48,7 +45,6 @@ def find_most_apt(name, series):
     mostapt = series[indd]
     return(mostapt)
 
-
 # Retrieves name from imDB
 def main_imdb(str21):
     ia = IMDb()
@@ -60,275 +56,182 @@ def main_imdb(str21):
             series.append(str2)
     return(series)
 
-
 # Remove illegal characters from file name
-def removeIllegal(str):
-    str=str.replace('<',"")
-    str=str.replace('>',"")
-    str=str.replace(':',"")
-    str=str.replace('"',"")
-    str=str.replace('/',"")
-    str=str.replace('\\',"")
-    str=str.replace('|',"")
-    str=str.replace('?',"")
-    str=str.replace('*',"")
-    str=str.strip()
-    return(str)
+def remove_illegal(str):
+    illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+    for char in illegal_chars:
+        str = str.replace(char, "")
+    return str.strip()
 
 # has Condition #1
-def hasX(inputString):
+def has_x(inputString):
     return bool(re.search(r'\dx\d', inputString) or re.search(r'\d x \d', inputString))
 
 # has Condition #2
-def hasSE(inputString):
+def has_se(inputString):
     return bool(re.search(r'S\d\dE\d\d', inputString) or re.search(r'S\dE\d\d', inputString) or re.search(r's\d\de\d\d', inputString) or re.search(r's\de\d\d', inputString))
 
 # has Condition #3
-def hasSEP(inputString):
+def has_sep(inputString):
     return bool(re.search(r'S\d\dEP\d\d', inputString) or re.search(r'S\dEP\d\d', inputString) or re.search(r's\d\dep\d\d', inputString) or re.search(r's\dep\d\d', inputString))
 
-
-def FindName(inputString):
+def find_name(inputString):
     inputString = inputString.replace(' x ', 'x', 1)
-    filteredList = filter(None, re.split(r'(\dx\d)', inputString))
-    for element in filteredList:
-        Name = element
-        Name = Name.replace('-',' ')
-        Name = Name.replace('.',' ')
-        Name = Name.strip()
-        return str(Name)
+    filtered_list = filter(None, re.split(r'(\dx\d)', inputString))
+    for element in filtered_list:
+        name = element.replace('-', ' ').replace('.', ' ').strip()
+        return str(name)
 
-
-def FindDet(inputString):
+def find_det(inputString):
     inputString = inputString.replace(' x ', 'x', 1)
-    filteredList = filter(None, re.split(r'(\dx\d\d)', inputString))
-    i=0
-    for element in filteredList:
-        Det = element
-        Det = Det.replace('.',' ')
-        Det = Det.replace('-',' ')
-        Det = Det.strip()
-        if(i==1):
-            return str(Det)
-        i=i+1
+    filtered_list = filter(None, re.split(r'(\dx\d\d)', inputString))
+    i = 0
+    for element in filtered_list:
+        det = element.replace('.', ' ').replace('-', ' ').strip()
+        if i == 1:
+            return str(det)
+        i += 1
 
+def find_season(inputString):
+    det = find_det(inputString)
+    season = det.split('x')[0]
+    return str(season)
 
-def FindSeason(inputString):
-    Det = FindDet(inputString)
-    Season = Det.split('x')[0]
-    return str(Season)
+def find_episode(inputString):
+    det = find_det(inputString)
+    episode = det.split('x')[1]
+    return str(episode)
 
-
-def FindEpisode(inputString):
-    Det = FindDet(inputString)
-    Episode = Det.split('x')[1]
-    return str(Episode)
-
-
-def AddZero(inputString):
-    if(int(inputString) <10):
-        return str('0' + str(int(inputString)))
-    return(inputString)
-
+def add_zero(inputString):
+    return f'0{int(inputString)}' if int(inputString) < 10 else inputString
 
 def split_line(text):
-    words = text.split()
-    return words
+    return text.split()
 
-
-# Before Driver
-def init(path="NULL"):
-    Title()
+def init(path, dry_run, verbose):
+    title()
     try:
-        os.mkdir(str(os.getcwd())+"\\Input")
-    except:
-        pass
-    try:
-        os.mkdir(str(os.getcwd())+"\\Input\\Series")
-    except:
-        pass
-    main(path)
+        os.makedirs(os.path.join(os.getcwd(), "Input", "Series"), exist_ok=True)
+    except Exception as e:
+        if verbose:
+            print(f"Error creating directories: {e}")
+    main(path, dry_run, verbose)
 
 
 # Driver Code
-def main(path="NULL"):
+def main(path, dry_run, verbose):
     if path == "NULL":
-        cwd = str(os.getcwd())
-        path = cwd+"\\Input\\Series\\"
+        cwd = os.getcwd()
+        path = os.path.join(cwd, "Input", "Series")
         case = 1
     else:
         cwd = path
         print(path)
         case = 2
-    path_new = path_new_1 = rest = Final = "NULL"
-    NAME=""
-    Copy=""
-    i=0
-    ErrorFlag=0
-    FileFlag=0
+
+    path_new = path_new_1 = rest = final = "NULL"
+    name = ""
+    copy = ""
+    i = 0
+    error_flag = 0
+    file_flag = 0
     print("Reading Files....")
+
+    media_extensions = [".mp4", ".mkv", ".srt", ".avi", ".wmv"]
+
     # main loop
-    for (dirpath, dirnames, filenames) in os.walk(path):
+
+    for dirpath, dirnames, filenames in os.walk(path):
         files = os.listdir(dirpath)
         for file in files:
-            CheckFlag=0
+            check_flag = 0
             temp = file
-            extn = file[(len(file)-4) : len(file)]
-            """Logic Starts here"""
-            # All possible media extensions go here
-            media_extensions = [
-                    ".mp4",
-                    ".mkv",
-                    ".srt",
-                    ".avi",
-                    ".wmv"
-            ]
-            if (file.endswith(ex1) for ex1 in media_extensions):
-                Title()
-                print(str(i)+" File(s) Processed....")
-                rest = temp.split(extn,1)[0]
+            extn = file[-4:]
+
+            if any(file.endswith(ex1) for ex1 in media_extensions):
+                title()
+                print(f"{i} File(s) Processed....")
+                rest = temp.split(extn, 1)[0]
                 unwanted_stuff = [
-                    ".1080p",
-                    ".720p",
-                    "HDTV",
-                    "x264",
-                    "AAC",
-                    "E-Subs",
-                    "ESubs",
-                    "WEBRip",
-                    "WEB",
-                    "BluRay",
+                    ".1080p", ".720p", "HDTV", "x264", "AAC", "E-Subs", "ESubs", "WEBRip", "WEB", "BluRay",
                 ]
                 for stuff in unwanted_stuff:
-                    rest = rest.replace(stuff,"")
+                    rest = rest.replace(stuff, "")
                 rest = rest.replace(".", " ")
                 # Specifically written for'x' type Files
-                if hasX(file):
-                    CheckFlag=1
-                    NAME = FindName(rest)
-                    SEASON = FindSeason(rest)
-                    EPISODE = AddZero(FindEpisode(rest))
-                    Final = "S"+AddZero(FindSeason(rest))+"E"+EPISODE+extn
-
+                if has_x(file):
+                    check_flag = 1
+                    name = find_name(rest)
+                    season = find_season(rest)
+                    episode = add_zero(find_episode(rest))
+                    final = f"S{add_zero(find_season(rest))}E{episode}{extn}"
                 # Specifically written for 'S__E__' type Files
-                elif hasSE(file):
-                    NAME=""
+                elif has_se(file):
+                    name = ""
                     words = split_line(rest)
                     for word in words:
-                        if(hasSE(word)):
-                            Final = word
-                            break
-                        if(hasSEP(word)):
-                            Final = word
+                        if has_se(word) or has_sep(word):
+                            final = word
                             break
                         else:
-                            NAME = NAME + word + " "
-                    brackets_ = re.findall('[(]+(.*?)[)]', NAME)
-                    # print(brackets_)
+                            name += word + " "
+                    brackets_ = re.findall(r'\((.*?)\)', name)
                     for yy in brackets_:
                         try:
-                            NAME = NAME.replace(yy,"")
+                            name = name.replace(yy, "")
                         except:
                             pass
-                    if(NAME != Copy):
-                        Copy = NAME
-                        series = main_imdb(NAME)
-                        NAME = find_most_apt(NAME, series)
-                        NAME = removeIllegal(NAME)
-                        NAME = NAME.strip()
-                        Restore = NAME
+                    if name != copy:
+                        copy = name
+                        series = main_imdb(name)
+                        name = find_most_apt(name, series)
+                        name = remove_illegal(name)
+                        name = name.strip()
+                        restore = name
                     else:
-                        NAME = Restore
-                    TEMP=Final=Final.strip()
-                    TEMP=TEMP.replace('S',"")
-                    SEASON = TEMP.split('E',1)[0]
-                    EPISODE = TEMP.split('E',1)[1]
-                    Final = Final + extn
-                    CheckFlag=1
+                        name = restore
+                    temp_final = final.strip().replace('S', "")
+                    season = temp_final.split('E', 1)[0]
+                    episode = temp_final.split('E', 1)[1]
+                    final = final + extn
+                    check_flag = 1
 
-            if CheckFlag == 1:
+            if check_flag == 1:
                 if case == 1:
-                    path_new = cwd + "\\Output\\Series\\" + NAME
-                    path_new_1 = cwd + "\\Output\\Series\\" + NAME +"\\Season "+ str(int(SEASON))
+                    path_new = os.path.join(cwd, "Output", "Series", name)
+                    path_new_1 = os.path.join(path_new, f"Season {int(season)}")
                 elif case == 2:
-                    path_new = cwd + "\\" + NAME
-                    path_new_1 = cwd + "\\" + NAME +"\\Season "+ str(int(SEASON))
+                    path_new = os.path.join(cwd, name)
+                    path_new_1 = os.path.join(path_new, f"Season {int(season)}")
 
+                if verbose:
+                    print(f"Name: {name}, Season: {season}, Episode: {episode}, Path: {path_new_1}")
 
-            """Naming Logic Ends here"""
-            # For Testing
-            def TEST():
-                print ("\n\n")
-                print("NAME: " + NAME)
-                print("SEASON: " + SEASON)
-                print("EPISODE: " + EPISODE)
-                print("EXTN: " + extn)
-                # print("TEMP: " + temp)
-                print("REST: " + rest)
-                print("Final: " + Final)
-                print("PATH: "+ path_new)
-                print ("\n\n")
-            # TEST()    # Test Call
-            if CheckFlag == 1:
-                if case == 1:
+                if not dry_run:
+                    os.makedirs(path_new_1, exist_ok=True)
                     try:
-                        os.mkdir(cwd+"\\Output")
+                        os.rename(os.path.join(dirpath, file), os.path.join(path_new_1, final))
                     except FileExistsError:
-                        pass
-                    try:
-                        os.mkdir(cwd+"\\Output\\Series")
-                    except FileExistsError:
-                        pass
-                try:
-                    os.mkdir(path_new)
-                except FileExistsError:
-                    pass
-                try:
-                    os.mkdir(path_new_1)
-                except FileExistsError:
-                    pass
-                try:
-                    os.rename(os.path.join(dirpath, file), os.path.join(path_new_1, Final ))
-                except FileExistsError:
-                    print("Error - File Already Exist: \\"+ NAME +"\\Season "+ str(int(SEASON)) + "\\" + Final)
-                    FileFlag=1
-                    ErrorFlag=1
-                    i=i-1;
-                i=i+1
-        """Result Generation"""
-        Title()
-        print ("All Files Processed...")
-        if(FileFlag==1):
-            print("Solution: Try again after removing the above file(s) from Output folder")
-        if(i>0 or ErrorFlag==1):
-            print(str(i)+" File(s) Renamed and Organised Successfully")
-            # os.system("explorer.exe " + str(os.getcwd() + "\Output\\"))
-        else:
-            print("No Media File Found in Input Folder")
+                        print(f"Error - File Already Exist: {name}/Season {int(season)}/{final}")
+                        file_flag = 1
+                        error_flag = 1
+                        i -= 1
 
+                i += 1
 
-# Prints usage/help
-def usageHelp():
-    print('\nUsage:\n  RENAME-Series.py [options] <commands (or) path>')
-    print("\nGeneral Options:")
-    print("  -h \tShow help.")
-    print("  -p \tTo orgainise TV Shows in the specified directory\n")
-    sys.exit(2)
+    """Result Generation"""
+    title()
+    print("All Files Processed...")
+    if file_flag == 1:
+        print("Solution: Try again after removing the above file(s) from Output folder")
+    if i > 0 or error_flag == 1:
+        print(f"{i} File(s) Renamed and Organised Successfully")
+    else:
+        print("No Media File Found in Input Folder")
 
-
-if __name__ == '__main__':
-    path = "NULL"
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h', ["path="])
-    except getopt.GetoptError:
-        usageHelp()
-    for opt, arg in opts:
-        if opt in ("-p", "--path"):
-            path = arg
-        elif opt == '-h':
-            usageHelp()
-    init(path)
-    print("Moving files..")
-    print("Enter any key to exit...")
-    print()
-    msvcrt.getch()
+@click.command()
+@click.option('--path', '-p', default="NULL", help='Path to organize TV Shows')
+@click.option('--dry-run', is_flag=True, help='Perform a trial run with no changes made')
+@click.option('--verbose', is_flag=True, help='Show verbose output')
+def cli(path, dry_run, verbose):
+    """Automate the boring process of

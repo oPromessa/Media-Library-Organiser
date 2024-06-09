@@ -3,3 +3,5 @@
 *.mp4
 *.ini
 .google-cookie
+ 
+venv
