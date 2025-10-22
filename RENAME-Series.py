@@ -2,28 +2,30 @@ import os
 import re
 import shutil
 import click
-from imdb import IMDb
+# from imdb import IMDb
+from imdb import Cinemagoer as IMDb
 from similarity.damerau import Damerau
 
 # Title
 def title():
-    os.system('mode con: cols=90 lines=30')
-    os.system("cls")
-    print("    _       _                  _          _  ")
-    print("   /_\ _  _| |_ ___ _ __  __ _| |_ ___ __| | ")
-    print("  / _ \ || |  _/ _ \ '  \/ _` |  _/ -_) _` | ")
-    print(" /_/ \_\_,_|\__\___/_|_|_\__,_|\__\___\__,_| ")
-    print("                                             ")
-    print("  _    _ _                       ")
-    print(" | |  (_) |__ _ _ __ _ _ _ _  _  ")
-    print(" | |__| | '_ \ '_/ _` | '_| || | ")
-    print(" |____|_|_.__/_| \__,_|_|  \_, | ")
-    print("                           |__/  ")
-    print("   ___                     _             ")
-    print("  / _ \ _ _ __ _ __ _ _ _ (_)___ ___ _ _ ")
-    print(" | (_) | '_/ _` / _` | ' \| (_-</ -_) '_|")
-    print("  \___/|_| \__, \__,_|_||_|_/__/\___|_|  ")
-    print("           |___/                         ")
+    # os.system('mode con: cols=90 lines=30')
+    # os.system("clear")
+    # print("    _       _                  _          _  ")
+    # print("   /_\ _  _| |_ ___ _ __  __ _| |_ ___ __| | ")
+    # print("  / _ \ || |  _/ _ \ '  \/ _` |  _/ -_) _` | ")
+    # print(" /_/ \_\_,_|\__\___/_|_|_\__,_|\__\___\__,_| ")
+    # print("                                             ")
+    # print("  _    _ _                       ")
+    # print(" | |  (_) |__ _ _ __ _ _ _ _  _  ")
+    # print(" | |__| | '_ \ '_/ _` | '_| || | ")
+    # print(" |____|_|_.__/_| \__,_|_|  \_, | ")
+    # print("                           |__/  ")
+    # print("   ___                     _             ")
+    # print("  / _ \ _ _ __ _ __ _ _ _ (_)___ ___ _ _ ")
+    # print(" | (_) | '_/ _` / _` | ' \| (_-</ -_) '_|")
+    # print("  \___/|_| \__, \__,_|_||_|_/__/\___|_|  ")
+    # print("           |___/                         ")
+    pass
 
 # Find most apt name in Series List
 def find_most_apt(name, series):
@@ -104,22 +106,42 @@ def split_line(text):
 def init(path, dry_run, verbose):
     title()
     try:
-        os.makedirs(os.path.join(os.getcwd(), "Input", "Series"), exist_ok=True)
+        if dry_run:
+            click.echo(f"[dryrun] Creating folder {os.path.join(os.getcwd(), 'Input', 'Series')}")
+        else:
+            if verbose:
+                click.echo(f"Creating folder {os.path.join(os.getcwd(), 'Input', 'Series')}...")
+            os.makedirs(os.path.join(os.getcwd(), 'Input', 'Series'), exist_ok=True)
     except Exception as e:
-        if verbose:
-            print(f"Error creating directories: {e}")
+        click.echo(f"Error creating directories: {e}")
     main(path, dry_run, verbose)
 
 
 # Driver Code
 def main(path, dry_run, verbose):
+
+    # For Testing
+    def debug(location=""):
+        click.echo(f"{location}\n")
+        click.echo(f"\tName: {name}")
+        click.echo(f"\tSeason: {season}")
+        click.echo(f"\tEpisode: {episode}")
+        click.echo(f"\textension: {extn}")
+        click.echo(f"\trest: {rest}")
+        click.echo(f"\tFinal: {final}")
+        click.echo(f"\tPath_New: {path_new}")
+              
+    name = season = episode = extn = rest = final = None
+
     if path == "NULL":
         cwd = os.getcwd()
         path = os.path.join(cwd, "Input", "Series")
+        # case = 1 is CWD
         case = 1
     else:
         cwd = path
         print(path)
+        # case = 2 is an optional path
         case = 2
 
     path_new = path_new_1 = rest = final = "NULL"
@@ -128,12 +150,12 @@ def main(path, dry_run, verbose):
     i = 0
     error_flag = 0
     file_flag = 0
-    print("Reading Files....")
+    if verbose:
+        click.echo("Reading Files....")
 
     media_extensions = [".mp4", ".mkv", ".srt", ".avi", ".wmv"]
 
     # main loop
-
     for dirpath, dirnames, filenames in os.walk(path):
         files = os.listdir(dirpath)
         for file in files:
@@ -158,10 +180,14 @@ def main(path, dry_run, verbose):
                     season = find_season(rest)
                     episode = add_zero(find_episode(rest))
                     final = f"S{add_zero(find_season(rest))}E{episode}{extn}"
+                    if verbose > 1:
+                        debug("has_x")
                 # Specifically written for 'S__E__' type Files
                 elif has_se(file):
                     name = ""
                     words = split_line(rest)
+                    if verbose > 1:
+                        click.echo(f"[verbose] words:[{words}]", err=True)
                     for word in words:
                         if has_se(word) or has_sep(word):
                             final = word
@@ -169,6 +195,9 @@ def main(path, dry_run, verbose):
                         else:
                             name += word + " "
                     brackets_ = re.findall(r'\((.*?)\)', name)
+                    if verbose > 1:
+                        click.echo(f"[verbose] brackets_:[{brackets_}] in name:[{name}]", err=True)
+                        debug("has_se")
                     for yy in brackets_:
                         try:
                             name = name.replace(yy, "")
@@ -188,6 +217,8 @@ def main(path, dry_run, verbose):
                     episode = temp_final.split('E', 1)[1]
                     final = final + extn
                     check_flag = 1
+                    if verbose > 1:
+                        debug("final")
 
             if check_flag == 1:
                 if case == 1:
@@ -200,15 +231,21 @@ def main(path, dry_run, verbose):
                 if verbose:
                     print(f"Name: {name}, Season: {season}, Episode: {episode}, Path: {path_new_1}")
 
-                if not dry_run:
+                if dry_run:
+                    click.echo(f"[dryrun] Creating folder Output: {path_new_1}")
+                else:
                     os.makedirs(path_new_1, exist_ok=True)
-                    try:
+                
+                try:
+                    if dry_run:
+                        click.echo(f"[dryrun] rename({os.path.join(dirpath, file)} -> {os.path.join(path_new_1, final)}")
+                    else:
                         os.rename(os.path.join(dirpath, file), os.path.join(path_new_1, final))
-                    except FileExistsError:
-                        print(f"Error - File Already Exist: {name}/Season {int(season)}/{final}")
-                        file_flag = 1
-                        error_flag = 1
-                        i -= 1
+                except FileExistsError:
+                    print(f"Error - File Already Exist: {name}/Season {int(season)}/{final}")
+                    file_flag = 1
+                    error_flag = 1
+                    i -= 1
 
                 i += 1
 
@@ -225,7 +262,7 @@ def main(path, dry_run, verbose):
 @click.command()
 @click.option('--path', '-p', default="NULL", help='Path to organize TV Shows')
 @click.option('--dry-run', is_flag=True, help='Perform a trial run with no changes made')
-@click.option('--verbose', is_flag=True, help='Show verbose output')
+@click.option('--verbose', "-v", count=True, help='Show verbose output')
 def cli(path, dry_run, verbose):
     """Automate the boring process of renaming files for your TV Shows library."""
     init(path, dry_run, verbose)
